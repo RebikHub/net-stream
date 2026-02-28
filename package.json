@@ -24,7 +24,7 @@
     "@electron-forge/plugin-fuses": "^7",
     "@electron-forge/publisher-github": "^7",
     "@electron/fuses": "^1",
-    "electron": "^34.3.0",
+    "electron": "^40.6.1",
     "standard": "^17"
   },
   "keywords": [],
@@ -38,7 +38,7 @@
     "cheerio": "^1",
     "cors": "^2",
     "electron-squirrel-startup": "^1",
-    "express": "^4",
+    "express": "^5",
     "fs-extra": "^11",
     "m3u8-parser": "^7",
     "parse-torrent": "^11",
