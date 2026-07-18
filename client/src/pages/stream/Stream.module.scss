@@ -1,0 +1,103 @@
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  align-self: center;
+  font-size: 24px;
+  margin: 10px auto;
+}
+
+.main {
+  display: flex;
+  gap: 20px;
+}
+
+.controls {
+  width: 100%;
+}
+
+.video {
+  width: 65vw;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  height: 40px;
+  border-radius: 5px;
+  border: 1px solid grey;
+  outline: none;
+  padding-left: 1rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+
+  & button {
+    cursor: pointer;
+    background-color: cornflowerblue;
+    color: white;
+    border-radius: 10px;
+    padding: 10px 20px;
+    border: none;
+    outline: none;
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+}
+
+.disabled {
+  cursor: not-allowed !important;
+  opacity: 0.5;
+}
+
+.filters {
+  display: flex;
+  list-style: none;
+  gap: 1rem;
+  justify-content: start;
+  flex-wrap: wrap;
+  padding: 0;
+}
+
+.item {
+  cursor: pointer;
+  border-radius: 10px;
+  background-color: cadetblue;
+  color: white;
+  padding: 5px 10px;
+  font: caption;
+
+  &_active {
+    background-color: rgb(2, 71, 73);
+  }
+}
+
+.result {
+  & ul {
+    list-style: none;
+    padding: 0;
+    width: 100%;
+  }
+
+  & li {
+    cursor: pointer;
+    list-style: none;
+    display: grid;
+    grid-auto-flow: column;
+    gap: 10px;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.058);
+    }
+  }
+}
