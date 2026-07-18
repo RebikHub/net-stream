@@ -1,69 +1,77 @@
-import axios from 'axios'
+import { existsSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { PLAYLIST_URL, TV_CHANNELS_URL, TV_STREAMS_URL } from '../../config.js'
 import { readJson, createPlaylists } from '../../utils/readJson.js'
-import fsExtra from 'fs-extra'
 import { parsePlaylist } from '../../utils/parsePlaylist.js'
-
 import { createDownlaodFolder } from '../../utils/createFolder.js'
-import { CONTENT_TV_PATH } from '../../../index.mjs'
-
-const { existsSync, mkdirSync, writeFileSync } = fsExtra
+import { CONTENT_TV_PATH } from '../../index.js'
 
 export const getChannelList = async (path, res) => {
   try {
     const playlist = await readJson(path)
+
     if (!playlist || playlist.length === 0) {
-      axios.get(TV_CHANNELS_URL).then(({ data }) => {
-        writeFileSync(
-          `${CONTENT_TV_PATH}/channels.json`,
-          JSON.stringify(data, null, 2)
-        )
-        axios
-          .get(TV_STREAMS_URL)
-          .then(({ data }) => {
-            writeFileSync(
-              `${CONTENT_TV_PATH}/streams.json`,
-              JSON.stringify(data, null, 2)
-            )
-            createPlaylists()
-          })
-          .then(async () => {
-            const list = await readJson(path)
-            res.status(200).json(list)
-          })
-      })
-    } else {
-      res.status(200).json(playlist)
+      // Запрашиваем каналы
+      const channelsRes = await fetch(TV_CHANNELS_URL)
+      const channelsData = await channelsRes.json()
+      await writeFile(
+        `${CONTENT_TV_PATH}/channels.json`,
+        JSON.stringify(channelsData, null, 2)
+      )
+
+      // Запрашиваем стримы
+      const streamsRes = await fetch(TV_STREAMS_URL)
+      const streamsData = await streamsRes.json()
+      await writeFile(
+        `${CONTENT_TV_PATH}/streams.json`,
+        JSON.stringify(streamsData, null, 2)
+      )
+
+      // Генерируем плейлисты
+      await createPlaylists()
+
+      // Читаем обновленный файл и отдаем клиенту
+      const list = await readJson(path)
+      return res.status(200).json(list)
     }
+
+    return res.status(200).json(playlist)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to response playlist' })
+    console.error(error)
+    return res.status(500).json({ error: 'Failed to response playlist' })
   }
 }
 
 export const getPlaylistUpdate = async (req, res) => {
   try {
-    axios.get(TV_CHANNELS_URL).then(({ data }) => {
-      mkdirSync(`${!existsSync(CONTENT_TV_PATH) ? createDownlaodFolder() : CONTENT_TV_PATH}/channels.json`)
+    // Проверяем существование папки перед записью
+    if (!existsSync(CONTENT_TV_PATH)) {
+      await mkdir(createDownlaodFolder(), { recursive: true })
+    }
 
-      writeFileSync(
-        `${CONTENT_TV_PATH}/channels.json`,
-        JSON.stringify(data, null, 2)
-      )
+    // Скачиваем каналы
+    const channelsRes = await fetch(TV_CHANNELS_URL)
+    const channelsData = await channelsRes.json()
+    await writeFile(
+      `${CONTENT_TV_PATH}/channels.json`,
+      JSON.stringify(channelsData, null, 2)
+    )
 
-      axios.get(TV_STREAMS_URL).then(({ data }) => {
-        const streamSort = data.filter((stream) => {
-          return /\.m3u8$/.test(stream.url)
-        })
-        writeFileSync(
-          `${CONTENT_TV_PATH}/streams.json`,
-          JSON.stringify(streamSort, null, 2)
-        )
-        createPlaylists()
-        res.status(200).json({ response: 'Playlist ready!' })
-      })
-    })
+    // Скачиваем и фильтруем стримы
+    const streamsRes = await fetch(TV_STREAMS_URL)
+    const streamsData = await streamsRes.json()
+    const streamSort = streamsData.filter((stream) => /\.m3u8$/.test(stream.url))
+
+    await writeFile(
+      `${CONTENT_TV_PATH}/streams.json`,
+      JSON.stringify(streamSort, null, 2)
+    )
+
+    await createPlaylists()
+    return res.status(200).json({ response: 'Playlist ready!' })
   } catch (error) {
-    res.status(500).json({ error: 'Failed to response playlist' })
+    console.error(error)
+    return res.status(500).json({ error: 'Failed to response playlist' })
   }
 }
 
@@ -84,41 +92,46 @@ export const getPlaylistAll = async (req, res) => {
     const playlist = await readJson(`${CONTENT_TV_PATH}/all.json`)
 
     if (!playlist || playlist.length === 0) {
-      axios.get(PLAYLIST_URL + 'LoganetXAll.m3u').then((response) => {
-        if (response.data) {
-          const playlist = parsePlaylist(response.data)
-          if (playlist && playlist.length) {
-            writeFileSync(
+      const response = await fetch(PLAYLIST_URL + 'LoganetXAll.m3u')
+      const textData = await response.text()
+
+      if (textData) {
+        const parsedPlaylist = parsePlaylist(textData)
+        if (parsedPlaylist && parsedPlaylist.length) {
+          await writeFile(
             `${CONTENT_TV_PATH}/all.json`,
-            JSON.stringify(playlist, null, 2)
-            )
-            res.status(200).json(playlist)
-          }
+            JSON.stringify(parsedPlaylist, null, 2)
+          )
+          return res.status(200).json(parsedPlaylist)
         }
-      })
+      }
     } else {
-      res.status(200).json(playlist)
+      return res.status(200).json(playlist)
     }
   } catch (error) {
-    res.status(500).json({ error: 'Failed to response playlist' })
+    console.error(error)
+    return res.status(500).json({ error: 'Failed to response playlist' })
   }
 }
 
 export const getPlaylistUpdateAll = async (req, res) => {
   try {
-    axios.get(PLAYLIST_URL + 'LoganetXAll.m3u').then((response) => {
-      if (response.data) {
-        const playlist = parsePlaylist(response.data)
-        if (playlist && playlist.length) {
-          writeFileSync(
-            `${CONTENT_TV_PATH}/all.json`,
-            JSON.stringify(playlist, null, 2)
-          )
-          res.status(200).json(playlist)
-        }
+    const response = await fetch(PLAYLIST_URL + 'LoganetXAll.m3u')
+    const textData = await response.text()
+
+    if (textData) {
+      const parsedPlaylist = parsePlaylist(textData)
+      if (parsedPlaylist && parsedPlaylist.length) {
+        await writeFile(
+          `${CONTENT_TV_PATH}/all.json`,
+          JSON.stringify(parsedPlaylist, null, 2)
+        )
+        return res.status(200).json(parsedPlaylist)
       }
-    })
+    }
+    return res.status(400).json({ error: 'Playlist is empty or invalid' })
   } catch (error) {
-    res.status(500).json({ error: 'Failed to response playlist' })
+    console.error(error)
+    return res.status(500).json({ error: 'Failed to response playlist' })
   }
 }

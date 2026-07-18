@@ -44,7 +44,7 @@ export const Stream: FC = () => {
     hash: string
   }>({ list: [], hash: '' })
   const { mutate, magnet, reset } = usePostMovie()
-  const { searchMovieData, getSearchMovie } = useScanSearchMovie(
+  const { searchMovieData, getSearchMovie, isLoading } = useScanSearchMovie(
     input,
     filterId
   )
@@ -184,6 +184,7 @@ export const Stream: FC = () => {
             <button onClick={stop}>Stop</button>
             <button onClick={cancel}>Cancel</button>
           </div>
+          {isLoading && <p>Loading...</p>}
           {eventSourceData != null && (
             <div>
               <p>

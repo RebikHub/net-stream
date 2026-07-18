@@ -18,7 +18,6 @@ export const FILTER_ARRAY = [1, 5, 7, 10, 4, 16]
 export const IMDB_SEARCH_URL = 'https://api.themoviedb.org/3'
 
 export const TORRENT_URLS = [
-  { url: 'https://rutor.info' },
   { url: 'https://6-ffyg.123tt.ru' },
   { url: 'https://3-new-rutor.123rutor.su' },
   { url: 'https://9-ixwrqnqb.123tt.ru' },

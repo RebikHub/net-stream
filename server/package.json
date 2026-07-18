@@ -1,0 +1,27 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "stream-module",
+  "author": "Rebikov Alexandr",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch --trace-warnings --no-warnings ../server/index.js",
+    "trace": "node --trace-warnings ../server/index.js",
+    "standard": "npx standard",
+    "standard-fix": "npx standard --fix"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "parse-torrent": "^11.0.21",
+    "torrent-search-api": "^2.1.4",
+    "vlc-command": "^1.2.0",
+    "webtorrent": "^3.0.16"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "standard": "^17.1.2"
+  }
+}

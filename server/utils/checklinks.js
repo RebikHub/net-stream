@@ -1,42 +1,31 @@
-import http from 'http'
-import https from 'https'
-import axios from 'axios'
-// import { Parser } from 'm3u8-parser'
-// import { writeFile } from 'fs-extra'
-// import { readJson } from './readJson.js'
-
 export async function checkUrl (url) {
-  return new Promise((resolve, _reject) => {
-    if (
-      url.includes('rtsp:') ||
-      url.includes('mmsh:') ||
-      url.includes('uhttp:')
-    ) {
-      resolve(false)
+  if (
+    url.includes('rtsp:') ||
+    url.includes('mmsh:') ||
+    url.includes('uhttp:')
+  ) {
+    return false
+  }
+
+  try {
+    // Делаем быстрый HEAD-запрос (только заголовки, без скачивания тела страницы)
+    // AbortSignal.timeout(3000) жестко прервет запрос через 3 секунды, если сервер «завис»
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(3000)
+    })
+
+    if (response.status === 200) {
+      console.log('link ok: ', url)
+      return true
     }
-    const protocol = url.startsWith('https') ? https : http
 
-    protocol
-      .get(url, (res) => {
-        const { statusCode } = res
-
-        if (statusCode === 200) {
-          console.log('link ok: ', url)
-          resolve(true)
-        }
-
-        setTimeout(() => {
-          if (statusCode !== 200) {
-            console.log('link not response long time')
-            resolve(false)
-          }
-        }, 1000 * 3)
-      })
-      .on('error', (_err) => {
-        resolve(false)
-        console.log('error-link')
-      })
-  })
+    return false
+  } catch (err) {
+    // Сюда мы попадем и при ошибке сети, и при таймауте в 3 секунды
+    console.log('error-link or timeout:', url)
+    return false
+  }
 }
 
 export async function checkWorkedUrl (list, url) {
@@ -46,15 +35,15 @@ export async function checkWorkedUrl (list, url) {
   })
 
   const filteredResults = await Promise.all(filteredPromises)
-
   const workedUrl = filteredResults.find(({ result }) => result)
-  url = workedUrl.item
-  // return workedUrl.item;
+
+  // В JavaScript изменение пришедшего аргумента `url = ...` не изменит переменную снаружи функции.
+  // Лучше возвращать результат через return, как вы закомментировали ниже:
+  return workedUrl ? workedUrl.item : null
 }
 
 export async function checkUrls (list) {
   const filteredPromises = list.map(async (item) => {
-    // const result = await checkUrl(item.url);
     const result = await checkM3U8Stream(item.url)
     return { item, result }
   })
@@ -64,42 +53,24 @@ export async function checkUrls (list) {
   const filteredArray = filteredResults
     .filter(({ result }) => result)
     .map(({ item }) => item)
+
   console.log('Checking complete!')
   return filteredArray
 }
 
 async function checkM3U8Stream (url) {
   try {
-    const response = await axios.get(url)
-    if (response.status === 200 && response.data.includes('#EXTM3U')) {
-      return true
-    } else {
-      return false
+    // Нативный fetch вместо axios.get
+    // Ограничиваем таймаут в 5 секунд, чтобы проверка плейлистов не длилась вечно
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+
+    if (response.status === 200) {
+      const text = await response.text() // Получаем содержимое как текст
+      return text.includes('#EXTM3U')
     }
+
+    return false
   } catch (error) {
     return false
   }
 }
-
-// async function getParserM3u8 (req, res) {
-//   const item = req.params.item
-//   console.log(item)
-//   axios
-//     .get(item)
-//     .then((response) => {
-//       console.log('url-response: ', response)
-//       // Парсим содержимое файла M3U8
-//       const parser = new Parser()
-//       parser.push(response.data)
-//       parser.end()
-//       const parsedData = parser.manifest
-
-//       res.status(200).json({ data: parser })
-//     })
-//     .catch((error) => {
-//       console.error('Произошла ошибка при загрузке файла M3U8:', error)
-//       res
-//         .status(405)
-//         .json({ error: `Произошла ошибка при загрузке файла M3U8: ${error}` })
-//     })
-// }

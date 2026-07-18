@@ -1,27 +1,33 @@
 import { app, BrowserWindow } from 'electron'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
-import appExpress from './server/app.js'
-import { PORT } from './server/config.js'
 import squirrel from 'electron-squirrel-startup'
-import { clearFolder } from './server/utils/clearFolder.js'
-import { destroyTorrentClient } from './server/controllers/video/torrentController.js'
-// import { clearBaseUrl } from './server/utils/getBaseUrl.js'
-import { createContentTvFolder, createContentUrlsFolder, createDownlaodFolder } from './server/utils/createFolder.js'
+import { PORT } from './assets/server/config.js'
+import { fork } from 'child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 let mainWindow
+let serverProcess = null
 
-export const WEBTORRENT_DOWNLOAD_PATH = createDownlaodFolder()
-export const CONTENT_TV_PATH = createContentTvFolder()
-export const CONTENT_URLS_PATH = createContentUrlsFolder()
+// Функция для безопасного запуска Express-сервера в фоне
+function startServer() {
+  // Путь к собранному бандлу сервера внутри ассетов Electron
+  const serverPath = path.join(__dirname, 'assets/server/server.js')
 
-appExpress.listen(PORT, () => {
-  clearFolder(WEBTORRENT_DOWNLOAD_PATH)
-  console.log(`Server is running on port ${PORT}`)
-})
+  // Просто запускаем процесс. Никаких путей Electron передавать не нужно!
+  serverProcess = fork(serverPath, [], {
+    env: {
+      ...process.env,
+      NODE_ENV: 'production'
+    }
+  })
+
+  serverProcess.on('error', (err) => console.error('Ошибка процесса сервера:', err))
+  serverProcess.on('exit', (code) => console.log(`Сервер завершил работу с кодом ${code}`))
+}
+
 
 if (squirrel) {
   app.quit()
@@ -33,7 +39,7 @@ function createWindow () {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false,
+      contextIsolation: true,
       enableBlinkFeatures: 'AudioVideoTracks',
       enableRemoteModule: true,
       backgroundThrottling: false,
@@ -63,7 +69,11 @@ function createWindow () {
 }
 
 // Обработка события 'ready'
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  startServer() // ◄ ОБЯЗАТЕЛЬНО запускаем сервер тут
+  createWindow()
+})
+
 
 // Обработка события 'activate'
 app.on('activate', () => {
@@ -72,24 +82,28 @@ app.on('activate', () => {
   }
 })
 
-// Обработка события 'window-all-closed'
+// Функция для красивого закрытия торрент-клиента внутри сервера
+function shutdownServer() {
+  if (serverProcess) {
+    // Вместо вызова destroyTorrentClient() отправляем серверу системный сигнал
+    serverProcess.send({ action: 'SHUTDOWN' })
+
+    // Даем серверу немного времени на удаление файлов, затем жестко убиваем, если он завис
+    setTimeout(() => {
+      if (serverProcess) serverProcess.kill()
+      app.quit()
+    }, 2000)
+  } else {
+    app.quit()
+  }
+}
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    try {
-      destroyTorrentClient()
-    } catch (err) {
-      console.error('Ошибка при удалении файлов: ', err)
-    } finally {
-      app.quit()
-    }
+    shutdownServer() // ◄ Тушим сервер перед выходом
   }
 })
 
-// Обработка события 'before-quit'
 app.on('before-quit', () => {
-  try {
-    destroyTorrentClient()
-  } catch (err) {
-    console.error('Ошибка при удалении файлов: ', err)
-  }
+  shutdownServer() // ◄ Тушим сервер перед выходом
 })
