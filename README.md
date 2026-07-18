@@ -1,4 +1,4 @@
-# NetStream Electron
+# NetStream
 
 Desktop-приложение для стриминга видео через WebTorrent.
 
