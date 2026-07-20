@@ -11,6 +11,8 @@ export interface ResponseEventSource {
   torrentUploadSpeed: string
 }
 
+let retries = 0;
+const MAX_RETRIES = 5;
 const baseUrl: string = import.meta.env.VITE_API_URL
 
 export const useEventSource = (hash?: string | null): { eventSourceData: ResponseEventSource | null, clearEventSource: () => void, startEventSource: (infoHash: string) => void } => {
@@ -23,10 +25,7 @@ export const useEventSource = (hash?: string | null): { eventSourceData: Respons
       source.current = null
     }
 
-    if (eventSourceData) {
-      setEventSourceData(null)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setEventSourceData(null)
   }, [])
 
   const startEventSource = useCallback((infoHash: string) => {
@@ -40,29 +39,35 @@ export const useEventSource = (hash?: string | null): { eventSourceData: Respons
       try {
         const data: ResponseEventSource = JSON.parse(event.data)
         setEventSourceData(data)
+        retries = 0;
       } catch (error) {
         console.error('Error parsing event data:', error)
       }
     }
 
     source.current.onerror = (error) => {
-      console.error('SSE Error:', error)
+        console.error('SSE Error:', error);
+        retries++;
+        if (retries >= MAX_RETRIES) {
+          source.current?.close();
+          source.current = null;
+          setEventSourceData(null);
+          console.warn('SSE closed after max retries');
+        }
     }
   }, [])
 
   useEffect(() => {
-    if (hash) {
+    if (!source.current && hash) {
       startEventSource(hash)
     }
-    console.log('render effect');
+  }, [hash, startEventSource])
 
+  useEffect(() => {
     return () => {
-      console.log('render return');
-
       clearEventSource()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hash])
+  }, [clearEventSource])
 
   return {
     startEventSource,

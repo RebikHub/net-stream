@@ -20,9 +20,12 @@ export const Torrent = () => {
   const { eventSourceData, clearEventSource, startEventSource } =
     useEventSource()
 
-  const play = (): void => {
+  const [isLoading, setLoading] = useState(false)
+
+  const play = useCallback((): void => {
     try {
       if (input) {
+        setLoading(true)
         postStreamAddMagnet(input)
           .then(({ files, infoHash }) => {
             console.log(files)
@@ -35,29 +38,31 @@ export const Torrent = () => {
       }
     } catch (error) {
       console.error(error)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [input, startEventSource])
 
-  const choseMovie = (nameMovie: string): void => {
+  const choseMovie = useCallback((nameMovie: string): void => {
     startVLCPlayer(listMovies.hash, nameMovie)
       .then((res) => {
         console.log('vlc start: ', res)
       })
       .catch(catchError)
-  }
+  }, [listMovies.hash])
 
-  const cancel = (): void => {
-    stop()
+  const stop = useCallback((magnet: string) => {
+    clearEventSource()
+    getStreamStop(magnet).catch(catchError)
+  }, [clearEventSource])
+
+  const cancel = useCallback((): void => {
+    if (input) {
+      stop(input)
+    }
     setInput('')
     setListMovies({ list: [], hash: '' })
-  }
-
-  const stop = useCallback(() => {
-    clearEventSource()
-    if (input) {
-      getStreamStop(input).catch(catchError)
-    }
-  }, [clearEventSource, input])
+  }, [stop, input])
 
   useEffect(() => {
     return () => {
@@ -65,14 +70,17 @@ export const Torrent = () => {
     }
   }, [clearEventSource])
 
-  useEffect(() => {
-    stop()
+  // useEffect(() => {
+  //   if (input) {
+  //     stop(input)
+  //   }
 
-    return () => {
-      stop()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  //   return () => {
+  //     if (input) {
+  //       stop(input)
+  //     }
+  //   }
+  // }, [stop, input])
 
   return (
     <div className={css.container}>
@@ -90,7 +98,11 @@ export const Torrent = () => {
           <div className={css.buttons}>
             <button onClick={play}>Play</button>
             <button onClick={cancel}>Cancel</button>
-            <button onClick={stop}>Stop</button>
+            <button onClick={() => {
+              if (input)
+              stop(input)
+            }
+            }>Stop</button>
           </div>
           {eventSourceData && (
             <div>
@@ -124,7 +136,7 @@ export const Torrent = () => {
                 </p>
               ))}
             </div>
-          ) : null}
+          ) : isLoading ? <p>Loading...</p> : null}
         </div>
       </div>
     </div>

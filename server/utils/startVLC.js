@@ -3,7 +3,7 @@ import vlcCommand from "vlc-command";
 
 let proc = null;
 
-export function spawn(url, title = "") {
+export function spawn(url) {
   vlcCommand((err, vlcPath) => {
     if (err) {
       console.error("Error getting VLC path:", err);
