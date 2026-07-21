@@ -33,7 +33,7 @@ export const useEventSource = (hash?: string | null): { eventSourceData: Respons
       source.current.close()
     }
 
-    source.current = new EventSource(baseUrl + `/video/stream/stats/${infoHash}`)
+    source.current = new EventSource(`${baseUrl}/video/stream/stats/${infoHash}`)
 
     source.current.onmessage = (event) => {
       try {

@@ -6,13 +6,14 @@ import { createDownlaodFolder } from '../../utils/createFolder.js'
 import { clearFolder } from '../../utils/clearFolder.js'
 import ParseTorrent from 'parse-torrent'
 
-// ✅ Исправленные опции: убраны дублирующийся tracker, несуществующие pex/webRTC
+// magnet:?xt=urn:btih:566eb622fa7e3eea95a4acef2bf9a3e8b8bdb02d&dn=rutor.info_%D0%9C%D0%B0%D0%BD%D0%B4%D0%B0%D0%BB%D0%BE%D1%80%D0%B5%D1%86+%D0%B8+%D0%93%D1%80%D0%BE%D0%B3%D1%83+%2F+The+Mandalorian+%26+Grogu+%282026%29+WEB-DL+1080p+%D0%BE%D1%82+EniaHD+%7C+D+%7C+MovieDalen+%7C+IMAX&tr=udp://opentor.net:6969&tr=http://retracker.local/announce
+
 const client = new WebTorrent({
   maxConns: 100,
   utp: true,
   dht: true,
   utPex: true,
-  webSeeds: true,
+  webSeeds: false,
   tracker: {
     announce: [
            'http://bt2.t-ru.org/ann?magnet',
@@ -26,7 +27,7 @@ const client = new WebTorrent({
   }
 })
 
-const streamServer = client.createServer();
+const streamServer = client.createServer({}, 'node');
 const STREAM_PORT = 8001; // или 0 для динамического порта
 
 streamServer.listen(STREAM_PORT, () => {
@@ -35,19 +36,47 @@ streamServer.listen(STREAM_PORT, () => {
 });
 
 client.on('error', (err) => {
-  console.error('Клиент: фатальная ошибка', err)
+  console.error('event-log-error: Клиент: фатальная ошибка', err)
 })
 
 client.on('add', (torrent) => {
-  console.log(`Торрент добавлен: ${torrent.magnetURI || torrent.infoHash}`)
+  console.log(`event-log-add: Торрент добавлен: ${torrent.magnetURI || torrent.infoHash}`)
 })
 
 client.on('torrent', (torrent) => {
-  console.log(`Торрент готов к работе: ${torrent.name} (${torrent.infoHash})`)
+  console.log(`event-log-torrent: Торрент готов к работе: ${torrent.name} (${torrent.infoHash})`)
+
+  console.log(`[Torrent] Инициализирован. InfoHash: ${torrent.infoHash}`);
+
+  torrent.on('ready', () => {
+    console.log('[Torrent] Готов к работе. Метаданные загружены.');
+  });
+
+  torrent.on('download', (bytes) => {
+    // Включайте только для отладки, создает много спама в консоли
+    // console.log(`[Torrent] Скачано байт: ${bytes}.`);
+  });
+
+  torrent.on('wire', (wire, addr) => {
+    // console.log(`[Torrent] Подключился новый пир: ${addr}`);
+  });
+
+  torrent.on('warning', (err) => {
+    console.warn('[Torrent] Предупреждение (не критично):', err.message);
+  });
+
+  torrent.on('error', (err) => {
+    console.error('[Torrent] Критическая ошибка:', err.message);
+  });
+
+  torrent.on('close', () => {
+    console.log('[Torrent] Полностью закрыт, ресурсы освобождены.');
+  });
+
 })
 
 client.on('remove', (torrent) => {
-  console.log(`Торрент удалён: ${torrent.name || torrent.infoHash}`)
+  console.log(`event-log-remove: Торрент удалён: ${torrent.name || torrent.infoHash}`)
 })
 
 // --- Вспомогательные функции ---
@@ -56,6 +85,10 @@ client.on('remove', (torrent) => {
  * Ждёт готовности торрента с таймаутом.
  */
 function waitForTorrentReady(torrent, timeoutMs = 100000) {
+  torrent.on('metadata', () => {
+    console.log('[Torrent] Метаданные загружены.');
+
+  })
   return new Promise((resolve, reject) => {
     if (torrent.ready) return resolve()
     const cleanup = () => {
@@ -73,20 +106,6 @@ function waitForTorrentReady(torrent, timeoutMs = 100000) {
     //   cleanup()
     //   reject(new Error(`Timeout waiting for metadata after ${timeoutMs}ms`))
     // }, timeoutMs)
-  })
-}
-
-/**
- * Добавляет торрент и возвращает его после готовности.
- */
-function addTorrentAsync(magnetLink, infoHash) {
-  return new Promise((resolve, reject) => {
-    const torrent = client.add(magnetLink, {
-      path: `${createDownlaodFolder()}/${infoHash}`
-    })
-    waitForTorrentReady(torrent)
-      .then(() => resolve(torrent))
-      .catch(reject)
   })
 }
 
@@ -154,23 +173,14 @@ export const streamStats = async (req, res) => {
       }
       try {
         const data = {
-          // speed: client?.downloadSpeed || torrent?.downloadSpeed || '',
-          // progress: client?.progress || torrent?.progress || '',
-          // ratio: client?.ratio || torrent?.ratio || '',
-          // torrentName: torrent?.name || '',
-          // torrentProgress: torrent?.progress || '',
-          // torrentDownLoadSpeed: torrent?.downloadSpeed || '',
-          // torrentRatio: torrent?.ratio || '',
-          // torrentUploadSpeed: torrent?.uploadSpeed || ''
-
-            speed: 'speed',
-            progress: 'progress',
-            ratio: 'ratio',
-            torrentName: 'torrentName',
-            torrentProgress: 'torrentProgress',
-            torrentDownLoadSpeed: 'torrentDownLoadSpeed',
-            torrentRatio: 'torrentRatio',
-            torrentUploadSpeed: 'torrentUploadSpeed'
+          speed: client?.downloadSpeed || torrent?.downloadSpeed || '',
+          progress: client?.progress || torrent?.progress || '',
+          ratio: client?.ratio || torrent?.ratio || '',
+          torrentName: torrent?.name || '',
+          torrentProgress: torrent?.progress || '',
+          torrentDownLoadSpeed: torrent?.downloadSpeed || '',
+          torrentRatio: torrent?.ratio || '',
+          torrentUploadSpeed: torrent?.uploadSpeed || ''
         }
         res.write(`data: ${JSON.stringify(data)}\n\n`)
       } catch (err) {
@@ -195,7 +205,8 @@ export const streamStats = async (req, res) => {
  */
 export const addMagnet = async (req, res) => {
   const magnetLink = req.body.magnet
-  const { infoHash } = await ParseTorrent(magnetLink)
+  const parseTorrent = await ParseTorrent(magnetLink)
+  const { infoHash } = parseTorrent
 
   try {
     let torrent = await client.get(infoHash)
@@ -303,34 +314,54 @@ export const streamVideo = async (req, res, next) => {
   })
 }
 
-// export const startPlayer = async (req, res) => {
-//   const { link, name } = req.params
-//   try {
-//     spawn(`http://localhost:${STREAM_PORT}/webtorrent/${link}/${encodeURIComponent(name)}`, name)
-//     res.status(200).end()
-//   } catch (error) {
-//     res.status(403).send(`Error start player: ${error}`)
-//   }
-// }
+export const getStreamLink = async (link, name) => {
+  try {
+    const fileName = decodeURIComponent(name);
+    let torrent = await client.get(link);
+    if (!torrent) {
+      console.log(`[Player] Торрент не найден. Добавляем: ${link}`);
+      torrent = client.add(link);
+    }
+    if (!torrent.ready) {
+      console.log('[Player] Ожидаем загрузки метаданных...');
+      await new Promise((resolve) => {
+        torrent.on('ready', resolve);
+      });
+    }
+    const file = torrent.files.find(f => f.name === fileName);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    file.select();
+    let safePath = file.streamURL.replace(/\\/g, '/');
+    safePath = safePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    const absoluteStreamURL = `http://localhost:${STREAM_PORT}${safePath}`;
+    return absoluteStreamURL;
+  } catch (err) {
+    console.error('[Player Error]:', err);
+    return null;
+  }
+}
+
 export const startPlayer = async (req, res) => {
-  const { link, name } = req.params;
-  const torrent = await client.get(link);
-  if (!torrent || !torrent.ready) {
-    return res.status(404).json({ error: 'Torrent not ready' });
-  }
-  const fileName = decodeURIComponent(name);
-  const file = torrent.files.find(f => f.name === fileName);
-  if (!file) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-
-  // Вот здесь магия: file.streamURL уже содержит полный URL
-  const streamURL = file.streamURL;
-  console.log('VLC will open:', streamURL);
-
-  spawn(streamURL);
-  res.status(200).end();
+    const { link, name } = req.params;
+    const absoluteStreamURL = await getStreamLink(link, name);
+    if (!absoluteStreamURL) {
+      return res.status(500).json({ error: 'Failed to get stream link' });
+    }
+    spawn(absoluteStreamURL);
+    return res.status(200).json({ success: true, url: absoluteStreamURL });
 };
+
+export const getLinkForPlayer = async (req, res) => {
+    const { link, name } = req.params;
+    const absoluteStreamURL = await getStreamLink(link, name);
+    if (!absoluteStreamURL) {
+      return res.status(500).json({ error: 'Failed to get stream link' });
+    }
+    return res.status(200).json({ success: true, url: absoluteStreamURL });
+};
+
 
 /**
  * Останавливает конкретный торрент и удаляет его файлы.

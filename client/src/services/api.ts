@@ -84,6 +84,10 @@ export const startVLCPlayer = async (link: string, name: string): Promise<any> =
   return await baseApi(`/video/stream/start/${link}/${name}`)
 }
 
+export const getStreamLink = async (link: string, name: string): Promise<any> => {
+  return await baseApi(`/video/stream/link/${link}/${name}`)
+}
+
 export const getSSEData = async (setData: any, infoHash: string): Promise<any> => {
   // Парсим поток событий (SSE)
   const eventSource = new EventSource(baseUrl + `/video/stream/stats/${infoHash}`)

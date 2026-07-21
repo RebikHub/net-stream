@@ -18,11 +18,14 @@ export function spawn(url) {
 }
 
 function prepareArgs(url) {
-  const args = ["--play-and-exit", "--quiet", url];
+  // Убираем '--play-and-exit', добавляем параметры быстрого кеширования
+  const args = [
+    "--quiet",
+    "--network-caching=1000", // Кеш в 1 секунду, чтобы быстрее стартовало
+    url
+  ];
 
-  // Добавляем интерфейс для Linux если нужно
   if (process.platform === "linux") {
-    // Можно определить, есть ли графическая среда
     if (process.env.DISPLAY || process.env.WAYLAND_DISPLAY) {
       args.unshift("--intf", "qt");
     }
@@ -30,6 +33,20 @@ function prepareArgs(url) {
 
   return args;
 }
+
+// function prepareArgs(url) {
+//   const args = ["--play-and-exit", "--quiet", url];
+
+//   // Добавляем интерфейс для Linux если нужно
+//   if (process.platform === "linux") {
+//     // Можно определить, есть ли графическая среда
+//     if (process.env.DISPLAY || process.env.WAYLAND_DISPLAY) {
+//       args.unshift("--intf", "qt");
+//     }
+//   }
+
+//   return args;
+// }
 
 export function kill() {
   if (!proc) return;

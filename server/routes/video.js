@@ -6,7 +6,8 @@ import {
   streamVideo,
   addMagnet,
   stopStream,
-  startPlayer
+  startPlayer,
+  getLinkForPlayer
 } from '../controllers/video/torrentController.js'
 
 const router = Router()
@@ -24,5 +25,7 @@ router.get('/stream/stop/:infoHash', stopStream)
 router.get('/stream/:infoHash/:name', streamVideo)
 
 router.get('/stream/start/:link/:name', startPlayer)
+
+router.get('/stream/link/:link/:name', getLinkForPlayer)
 
 export default router

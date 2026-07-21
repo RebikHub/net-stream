@@ -18,7 +18,7 @@
     "parse-torrent": "^11.0.21",
     "torrent-search-api": "^2.1.4",
     "vlc-command": "^1.2.0",
-    "webtorrent": "^3.0.16"
+    "webtorrent": "^2.5.4"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

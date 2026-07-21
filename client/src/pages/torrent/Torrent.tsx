@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import css from './Torrent.module.scss'
 import { useEventSource } from '../../services/sse-hook/useEventSource'
 import {
+  getStreamLink,
   getStreamStop,
   postStreamAddMagnet,
   startVLCPlayer,
@@ -21,6 +22,7 @@ export const Torrent = () => {
     useEventSource()
 
   const [isLoading, setLoading] = useState(false)
+  const [videoSrc, setVideoSrc] = useState<string | null>(null)
 
   const play = useCallback((): void => {
     try {
@@ -34,21 +36,28 @@ export const Torrent = () => {
           })
           .catch((error: any) => {
             console.error('Error adding magnet:', error)
+          }).finally(() => {
+            setLoading(false)
           })
       }
     } catch (error) {
       console.error(error)
-    } finally {
-      setLoading(false)
     }
   }, [input, startEventSource])
 
-  const choseMovie = useCallback((nameMovie: string): void => {
-    startVLCPlayer(listMovies.hash, nameMovie)
-      .then((res) => {
-        console.log('vlc start: ', res)
+  const choseMovie = useCallback((type: 'vlc' | 'html', nameMovie: string): void => {
+    if (type === 'vlc') {
+      startVLCPlayer(listMovies.hash, nameMovie)
+        .then((res) => {
+          console.log('vlc start: ', res)
+        })
+        .catch(catchError)
+    } else {
+      getStreamLink(listMovies.hash, nameMovie).then((res) => {
+        setVideoSrc(res.url)
       })
       .catch(catchError)
+    }
   }, [listMovies.hash])
 
   const stop = useCallback((magnet: string) => {
@@ -57,12 +66,12 @@ export const Torrent = () => {
   }, [clearEventSource])
 
   const cancel = useCallback((): void => {
-    if (input) {
-      stop(input)
+    if (listMovies.hash) {
+      stop(listMovies.hash)
     }
     setInput('')
     setListMovies({ list: [], hash: '' })
-  }, [stop, input])
+  }, [stop, listMovies.hash])
 
   useEffect(() => {
     return () => {
@@ -99,8 +108,8 @@ export const Torrent = () => {
             <button onClick={play}>Play</button>
             <button onClick={cancel}>Cancel</button>
             <button onClick={() => {
-              if (input)
-              stop(input)
+              if (listMovies.hash)
+              stop(listMovies.hash)
             }
             }>Stop</button>
           </div>
@@ -117,26 +126,42 @@ export const Torrent = () => {
               <p>Ratio: {eventSourceData.ratio || ''}</p>
             </div>
           )}
-          {listMovies.list.length === 1 ? (
-            <p
-              style={{ cursor: 'pointer' }}
-              onClick={() => choseMovie(listMovies.list[0].name)}
-            >
-              {listMovies.list[0].name}
-            </p>
-          ) : listMovies.list.length > 0 ? (
-            <div>
-              {listMovies.list.map((item: any) => (
-                <p
-                  key={item.name}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => choseMovie(item.name)}
+          {videoSrc ? <div className={css.videoWrapper}>
+            <div className={css.closeVideo} onClick={() => setVideoSrc(null)}>X</div>
+            <video
+              src={videoSrc}
+              controls
+            />
+          </div> :
+            <>
+              {listMovies.list.length === 1 ? (
+                <div
+                  className={css.item}
                 >
-                  {item.name}
-                </p>
-              ))}
-            </div>
-          ) : isLoading ? <p>Loading...</p> : null}
+                  {listMovies.list[0].name}
+                  <div className={css.itemBtn}>
+                    <span onClick={() => choseMovie('vlc', listMovies.list[0].name)}>смотреть через VLC</span>
+                    <span onClick={() => choseMovie('html', listMovies.list[0].name)}>смотреть через HTML</span>
+                  </div>
+                </div>
+              ) : listMovies.list.length > 0 ? (
+                <div className={css.list}>
+                  {listMovies.list.map((item: any) => (
+                    <div
+                      key={item.name}
+                      className={css.item}
+                    >
+                      {item.name}
+                      <div className={css.itemBtn}>
+                        <span onClick={() => choseMovie('vlc', item.name)}>смотреть через VLC</span>
+                        <span onClick={() => choseMovie('html', item.name)}>смотреть через HTML</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : isLoading ? <p>Loading...</p> : null}
+</>
+          }
         </div>
       </div>
     </div>
