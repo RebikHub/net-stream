@@ -3,6 +3,7 @@ allowBuilds:
   '@swc/core': true
   bufferutil: true
   esbuild: true
+  ip-set: set this to true or false
   node-datachannel: true
   utf-8-validate: true
   utp-native: true

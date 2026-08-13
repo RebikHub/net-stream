@@ -14,7 +14,6 @@
     "fix": "npx standard --fix",
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm run build",
-
     "copy:client": "npx rimraf src/assets/client/index.js src/assets/client/index.css && npx cpy client/dist/index.js client/dist/index.css src/assets/client/ --flat",
     "copy:server": "npx rimraf src/assets/server && npx mkdirp src/assets/server && npx cpy server/dist/server.js server/package.json server/package-lock.json src/assets/server/ --flat && cd src/assets/server && npm ci --omit=dev",
     "build:electron": "npm run build:client && npm run build:server && npm run copy:client && npm run copy:server",
@@ -32,9 +31,9 @@
     "@electron/fuses": "^1",
     "electron": "^40.6.1",
     "standard": "^17",
-      "rimraf": "^5.0.5",
-      "cpy-cli": "^5.0.0",
-      "mkdirp": "^3.0.1"
+    "rimraf": "^5.0.5",
+    "cpy-cli": "^5.0.0",
+    "mkdirp": "^3.0.1"
   },
   "keywords": [],
   "author": {
