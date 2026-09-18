@@ -6,18 +6,19 @@
   "type": "module",
   "main": "src/index.mjs",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
+    "start": "npm run build:client && npm run copy:client && electron-forge start -- --no-sandbox",
+    "build": "npm run build:client && npm run copy:client",
+    "package": "npm run build && electron-forge package",
+    "make": "npm run build && electron-forge make",
     "publish": "electron-forge publish",
+    "dist": "npm run build && electron-forge make",
+    "postinstall": "cd client && npm install",
+    "fix:sandbox": "sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox",
+    "dev:server": "node --watch --no-warnings server/index.js",
     "standard": "npx standard",
     "fix": "npx standard --fix",
     "build:client": "cd client && npm run build",
-    "build:server": "cd server && npm run build",
-    "copy:client": "npx rimraf src/assets/client/index.js src/assets/client/index.css && npx cpy client/dist/index.js client/dist/index.css src/assets/client/ --flat",
-    "copy:server": "npx rimraf src/assets/server && npx mkdirp src/assets/server && npx cpy server/dist/server.js server/package.json server/package-lock.json src/assets/server/ --flat && cd src/assets/server && npm ci --omit=dev",
-    "build:electron": "npm run build:client && npm run build:server && npm run copy:client && npm run copy:server",
-    "dist": "npm run build:electron && cd src && npm run make"
+    "copy:client": "npx rimraf src/assets/client/index.js src/assets/client/index.css && npx cpy client/dist/index.js client/dist/index.css src/assets/client/ --flat"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7",
@@ -32,8 +33,7 @@
     "electron": "^40.6.1",
     "standard": "^17",
     "rimraf": "^5.0.5",
-    "cpy-cli": "^5.0.0",
-    "mkdirp": "^3.0.1"
+    "cpy-cli": "^5.0.0"
   },
   "keywords": [],
   "author": {
@@ -42,9 +42,15 @@
   },
   "license": "MIT",
   "dependencies": {
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
     "electron-squirrel-startup": "^1",
+    "express": "^5.2.1",
     "m3u8-parser": "^7",
-    "vlc-command": "^1"
+    "parse-torrent": "^11.0.21",
+    "torrent-search-api": "^2.1.4",
+    "vlc-command": "^1",
+    "webtorrent": "^2.5.4"
   },
   "permissions": [
     "audio",

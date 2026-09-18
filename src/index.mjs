@@ -2,36 +2,13 @@ import { app, BrowserWindow } from 'electron'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
 import squirrel from 'electron-squirrel-startup'
-import { PORT } from './assets/server/config.js'
-import { fork } from 'child_process'
+import { startServer, stopServer } from '../server/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 let mainWindow
-let serverProcess = null
-
-// Функция для безопасного запуска Express-сервера в фоне
-function startServer() {
-  // Путь к собранному бандлу сервера внутри ассетов Electron
-  const serverPath = path.join(__dirname, 'assets/server/server.js')
-
-  // Просто запускаем процесс. Никаких путей Electron передавать не нужно!
-  serverProcess = fork(serverPath, [], {
-    env: {
-      ...process.env,
-      NODE_ENV: 'production'
-    }
-  })
-
-  serverProcess.on('error', (err) => console.error('Ошибка процесса сервера:', err))
-  serverProcess.on('exit', (code) => console.log(`Сервер завершил работу с кодом ${code}`))
-}
-
-
-if (squirrel) {
-  app.quit()
-}
+let shuttingDown = false
 
 function createWindow () {
   mainWindow = new BrowserWindow({
@@ -43,9 +20,6 @@ function createWindow () {
       enableBlinkFeatures: 'AudioVideoTracks',
       enableRemoteModule: true,
       backgroundThrottling: false,
-      contentSecurityPolicy: "default-src 'self';",
-      // contentSecurityPolicy:
-      //   "default-src 'self' 'unsafe-inline' 'unsafe-eval';",
       autoplayPolicy: 'no-user-gesture-required',
       webSecurity: true,
       sandbox: false
@@ -68,12 +42,23 @@ function createWindow () {
   })
 }
 
+// Функция для безопасного закрытия торрент-клиента и HTTP-сервера перед выходом
+function quitApp () {
+  if (shuttingDown) return
+  shuttingDown = true
+
+  stopServer('quit').finally(() => app.quit())
+}
+
+if (squirrel) {
+  app.quit()
+}
+
 // Обработка события 'ready'
 app.whenReady().then(() => {
-  startServer() // ◄ ОБЯЗАТЕЛЬНО запускаем сервер тут
+  startServer() // ОБЯЗАТЕЛЬНО запускаем сервер до создания окна
   createWindow()
 })
-
 
 // Обработка события 'activate'
 app.on('activate', () => {
@@ -82,28 +67,15 @@ app.on('activate', () => {
   }
 })
 
-// Функция для красивого закрытия торрент-клиента внутри сервера
-function shutdownServer() {
-  if (serverProcess) {
-    // Вместо вызова destroyTorrentClient() отправляем серверу системный сигнал
-    serverProcess.send({ action: 'SHUTDOWN' })
-
-    // Даем серверу немного времени на удаление файлов, затем жестко убиваем, если он завис
-    setTimeout(() => {
-      if (serverProcess) serverProcess.kill()
-      app.quit()
-    }, 2000)
-  } else {
-    app.quit()
-  }
-}
-
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    shutdownServer() // ◄ Тушим сервер перед выходом
+    quitApp()
   }
 })
 
-app.on('before-quit', () => {
-  shutdownServer() // ◄ Тушим сервер перед выходом
+app.on('before-quit', (event) => {
+  if (!shuttingDown) {
+    event.preventDefault()
+    quitApp()
+  }
 })

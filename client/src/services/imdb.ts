@@ -1,5 +1,5 @@
-const baseUrl: string = import.meta.env.VITE_IMDB_URL
-const token: string = import.meta.env.VITE_IMDB_TOKEN
+const baseUrl: string = import.meta.env.VITE_IMDB_URL ?? 'https://api.themoviedb.org/3'
+const token: string = import.meta.env.VITE_IMDB_TOKEN ?? ''
 
 // const url = 'https://api.themoviedb.org/3/search/movie?query=dune&include_adult=false&language=en-US&page=1'
 

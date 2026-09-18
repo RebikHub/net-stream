@@ -13,7 +13,7 @@ export interface ResponseEventSource {
 
 let retries = 0;
 const MAX_RETRIES = 5;
-const baseUrl: string = import.meta.env.VITE_API_URL
+const baseUrl: string = import.meta.env.VITE_API_URL ?? `http://127.0.0.1:${import.meta.env.VITE_API_PORT ?? 8000}`
 
 export const useEventSource = (hash?: string | null): { eventSourceData: ResponseEventSource | null, clearEventSource: () => void, startEventSource: (infoHash: string) => void } => {
   const source = useRef<EventSource | null>(null)

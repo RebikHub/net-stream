@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'url'
+import { resolve } from 'path'
 import appExpress from './app.js'
 import { PORT } from './config.js'
 import { clearFolder } from './utils/clearFolder.js'
@@ -9,13 +11,25 @@ export const WEBTORRENT_DOWNLOAD_PATH = createDownlaodFolder()
 export const CONTENT_TV_PATH = createContentTvFolder()
 export const CONTENT_URLS_PATH = createContentUrlsFolder()
 
-const server = appExpress.listen(PORT, () => {
-  clearFolder(WEBTORRENT_DOWNLOAD_PATH)
-  console.log(`Server is running on port ${PORT}`)
-})
+let server = null
+let isShuttingDown = false
+
+export function startServer () {
+  if (server) return server
+
+  server = appExpress.listen(PORT, () => {
+    clearFolder(WEBTORRENT_DOWNLOAD_PATH)
+    console.log(`Server is running on port ${PORT}`)
+  })
+
+  return server
+}
 
 // Единая функция для безопасной очистки ресурсов и закрытия сервера
-async function gracefulShutdown(reason) {
+export async function stopServer (reason = 'shutdown') {
+  if (!server || isShuttingDown) return
+
+  isShuttingDown = true
   console.log(`\n[Shutdown] Получен сигнал: ${reason}. Очистка ресурсов...`)
 
   try {
@@ -25,24 +39,24 @@ async function gracefulShutdown(reason) {
     console.error('[Shutdown] Ошибка при очистке торрентов:', err)
   }
 
-  server.close(() => {
-    console.log('[Shutdown] HTTP сервер остановлен. Выход.')
-    process.exit(0)
-  })
+  await new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error('[Shutdown] Принудительный выход по таймауту.')
+      resolve()
+    }, 3000)
 
-  setTimeout(() => {
-    console.error('[Shutdown] Принудительный выход по таймауту.')
-    process.exit(1)
-  }, 3000)
+    server.close(() => {
+      clearTimeout(timer)
+      console.log('[Shutdown] HTTP сервер остановлен. Выход.')
+      resolve()
+    })
+  })
 }
 
-// 1. СЛУШАЕМ СИГНАЛЫ ОТ ELECTRON (IPC канал)
-process.on('message', async (msg) => {
-  if (msg && msg.action === 'SHUTDOWN') {
-    await gracefulShutdown('SHUTDOWN (Electron)')
-  }
-})
+const isDirectRun = Boolean(process.argv[1]) && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 
-// 2. СЛУШАЕМ СИГНАЛЫ КОНСОЛИ (Для локальной разработки через node/nodemon)
-process.on('SIGINT', () => gracefulShutdown('SIGINT (Ctrl+C)'))
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+if (isDirectRun) {
+  startServer()
+  process.on('SIGINT', () => stopServer('SIGINT (Ctrl+C)').finally(() => process.exit(0)))
+  process.on('SIGTERM', () => stopServer('SIGTERM').finally(() => process.exit(0)))
+}

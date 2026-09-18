@@ -3,7 +3,14 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses'
 
 export default {
   packagerConfig: {
-    asar: true
+    asar: true,
+    ignore: [
+      /^\/out($|\/)/,
+      /^\/client($|\/)/,
+      /^\/\.git($|\/)/,
+      /^\/\.zed($|\/)/,
+      /^\/\.opencode($|\/)/
+    ]
   },
   rebuildConfig: {},
   makers: [
