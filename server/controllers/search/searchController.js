@@ -40,7 +40,7 @@ export const movieSearch = async (req, res) => {
     console.error('[Search Error] Поиск невозможен: нет доступных рабочих зеркал.')
 
     return res.status(503).json({
-      error: 'Сервис временно недоступен. Проверьте подключение к прокси/VPN.'
+      message: 'Сервис временно недоступен. Проверьте подключение к прокси/VPN.'
     })
   }
 
@@ -53,15 +53,15 @@ export const movieSearch = async (req, res) => {
     const htmlData = await response.text()
 
     const $ = cheerio.load(htmlData)
-    const data = $('#index tr').toArray()
+    const data = $('tr').toArray()
 
     const torrents = data
       .map((item) => {
-        const [date, links, , gb, seeds] = $(item).find('td').toArray()
-        const [, title] = $(links).find('a').toArray()
-
+        const td = $(item).find('td').toArray()
+        const [date, links, , gb, seeds] = td
+        const [, title, torrentName] = $(links).find('a').toArray()
         const trackerLink = $(title).attr('href')
-        const name = $(title).text()
+        const name = $(torrentName).text()
         const dateText = $(date).text()
         const gbText = $(gb).text()
         const [green, red] = $(seeds).find('span').toArray()
@@ -81,7 +81,8 @@ export const movieSearch = async (req, res) => {
       })
       .filter(
         (item) =>
-          item.urlTorrent && (item.ratio.seed > 0 || item.ratio.leech > 0)
+          !!item.urlTorrent
+          // item.urlTorrent && (item.ratio.seed > 0 || item.ratio.leech > 0)
       )
 
     return res.status(200).send(torrents)

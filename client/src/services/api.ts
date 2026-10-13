@@ -1,12 +1,12 @@
 import { ChannelListUrl } from './query-hooks/types'
 
-const baseUrl: string = import.meta.env.VITE_API_URL ?? `http://127.0.0.1:${import.meta.env.VITE_API_PORT ?? 8000}`
+const baseUrl: string = import.meta.env.VITE_API_URL ?? `http://127.0.0.1:${import.meta.env.VITE_API_PORT ?? 8000}` + '/api'
 
 const baseApi = async (url: string, config?: any): Promise<any> => {
   try {
     const response = await fetch(baseUrl + url, config)
     if (!response.ok) {
-      throw new Error('Failed to fetch data')
+      throw await response.json()
     }
 
     const contentType = response.headers.get('content-type')
@@ -18,6 +18,7 @@ const baseApi = async (url: string, config?: any): Promise<any> => {
     }
   } catch (error) {
     console.error('Error fetching data:', error)
+    throw error
   }
 }
 

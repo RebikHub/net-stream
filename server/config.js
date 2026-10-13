@@ -19,19 +19,19 @@ export const IMDB_SEARCH_URL = 'https://api.themoviedb.org/3'
 
 export const TORRENT_URLS = [
   { url: 'https://rutor.info' },
-  { url: 'https://6-ffyg.123tt.ru' },
-  { url: 'https://3-new-rutor.123rutor.su' },
-  { url: 'https://9-ixwrqnqb.123tt.ru' },
-  { url: 'https://9-fkqg.123tt.ru' },
-  { url: 'https://6-lrea.123tt.ru' },
-  { url: 'https://6-ixwrqzis.123tt.ru' },
-  { url: 'https://9-ixwrqzis.123tt.ru' },
-  { url: 'https://9-isqiegpg.123tt.ru' },
-  { url: 'https://6-isqiegpg.123tt.ru' },
-  { url: 'https://6-ixwrqzer.123tt.ru' },
-  { url: 'https://rutor.org' },
-  { url: 'https://9-ixwrqzer.123tt.ru' },
-  { url: 'https://9-isqpykoy.123tt.ru' }
+  // { url: 'https://6-ffyg.123tt.ru' },
+  // { url: 'https://3-new-rutor.123rutor.su' },
+  // { url: 'https://9-ixwrqnqb.123tt.ru' },
+  // { url: 'https://9-fkqg.123tt.ru' },
+  // { url: 'https://6-lrea.123tt.ru' },
+  // { url: 'https://6-ixwrqzis.123tt.ru' },
+  // { url: 'https://9-ixwrqzis.123tt.ru' },
+  // { url: 'https://9-isqiegpg.123tt.ru' },
+  // { url: 'https://6-isqiegpg.123tt.ru' },
+  // { url: 'https://6-ixwrqzer.123tt.ru' },
+  // { url: 'https://rutor.org' },
+  // { url: 'https://9-ixwrqzer.123tt.ru' },
+  // { url: 'https://9-isqpykoy.123tt.ru' }
 ]
 
 export const PLAYLIST_URL = 'https://raw.githubusercontent.com/blackbirdstudiorus/LoganetXIPTV/main/'

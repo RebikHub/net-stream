@@ -7,8 +7,9 @@ export const useScanSearchMovie = (movie: string, filter: number): {
   searchMovieData?: ResponseSearchMovie
   getSearchMovie: (options?: RefetchOptions | undefined) => Promise<QueryObserverResult<any, Error>>
   isLoading: boolean
+  error: Error | null
 } => {
-  const { data, refetch, isFetching } = useQuery({
+  const { data, refetch, isFetching, error } = useQuery({
     queryKey: [`${QueryKeys.GetScanSearchMovie}/${filter}/${movie}`],
     queryFn: async () => await getSearchMovie(movie, filter),
     refetchOnWindowFocus: false,
@@ -18,6 +19,7 @@ export const useScanSearchMovie = (movie: string, filter: number): {
   return useMemo(() => ({
     searchMovieData: data,
     getSearchMovie: refetch,
-    isLoading: isFetching
-  }), [data, isFetching, refetch])
+    isLoading: isFetching,
+    error,
+  }), [data, isFetching, refetch, error])
 }

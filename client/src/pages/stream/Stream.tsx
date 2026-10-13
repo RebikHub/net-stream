@@ -44,7 +44,7 @@ export const Stream: FC = () => {
     hash: string
   }>({ list: [], hash: '' })
   const { mutate, magnet, reset } = usePostMovie()
-  const { searchMovieData, getSearchMovie, isLoading } = useScanSearchMovie(
+  const { searchMovieData, getSearchMovie, isLoading, error } = useScanSearchMovie(
     input,
     filterId
   )
@@ -217,6 +217,7 @@ export const Stream: FC = () => {
           : (isPending || isLoading) && <div>...Loading</div>} */}
       </div>
       <div className={css.result}>
+        {error != null && <p>{error?.message || 'Ошибка запроса торрентов'}</p>}
         {(searchMovieData != null) && (
           <>
             <h5>Result</h5>

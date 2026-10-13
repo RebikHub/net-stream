@@ -55,7 +55,11 @@ export async function stopServer (reason = 'shutdown') {
 
 const isDirectRun = Boolean(process.argv[1]) && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 
+console.log("isDirectRun: ", isDirectRun)
+
 if (isDirectRun) {
+  // Если запуск происходит напрямую (например, через `node script.js`),
+  // запускаем сервер и настраиваем обработчики для корректного завершения работы.
   startServer()
   process.on('SIGINT', () => stopServer('SIGINT (Ctrl+C)').finally(() => process.exit(0)))
   process.on('SIGTERM', () => stopServer('SIGTERM').finally(() => process.exit(0)))
