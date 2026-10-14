@@ -91,6 +91,7 @@ export const getStreamLink = async (link: string, name: string): Promise<any> =>
 
 export const getSSEData = async (setData: any, infoHash: string): Promise<any> => {
   // Парсим поток событий (SSE)
+  console.log('baseUrl: ', baseUrl)
   const eventSource = new EventSource(baseUrl + `/video/stream/stats/${infoHash}`)
 
   // Назначаем обработчик для сообщений от сервера SSE
@@ -107,7 +108,7 @@ export const getSSEData = async (setData: any, infoHash: string): Promise<any> =
 
 // Search movies
 
-export type ResponseSearchMovie = Array<{
+export type ResponseSearchMovie = {
   urlTorrent: string | undefined
   nameTorrent: string
   dateTorrent: string
@@ -117,9 +118,9 @@ export type ResponseSearchMovie = Array<{
     leech: string
   }
   seeds: string
-}>
+}
 
-export const getSearchMovie = async (movie: string, filter: number): Promise<ResponseSearchMovie> => {
+export const getSearchMovie = async (movie: string, filter: number): Promise<ResponseSearchMovie[]> => {
   return await baseApi(`/search/ru/${filter}/${movie}`)
 }
 

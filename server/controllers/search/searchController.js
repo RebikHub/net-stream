@@ -3,6 +3,7 @@ import parseTorrent from 'parse-torrent'
 import * as cheerio from 'cheerio'
 import { FILTER_ARRAY } from '../../config.js'
 import { getBaseUrl } from '../../utils/getBaseUrl.js'
+import { isValidTorrentIdentifier } from '../../utils/isValidTorrentMagnet.js'
 
 export const getSearchMovie = async (req, res) => {
   const movie = req.params.movie
@@ -63,8 +64,8 @@ export const movieSearch = async (req, res) => {
         const trackerLink = $(title).attr('href')
         const name = $(torrentName).text()
         const dateText = $(date).text()
-        const gbText = $(gb).text()
-        const [green, red] = $(seeds).find('span').toArray()
+        const gbText = $(td[td.length - 2]).text()
+        const [green, red] = $(td[td.length - 1]).find('span').toArray()
         const ratio = {
           seed: $(green).text(),
           leech: $(red).text()
@@ -94,6 +95,16 @@ export const movieSearch = async (req, res) => {
 
 export const magnetSearch = async (req, res) => {
   const data = req.body
+
+  console.log(data)
+
+  const magnetHash = await isValidTorrentIdentifier(data.data)
+
+  console.log('magnetHash: ', magnetHash)
+
+  if (magnetHash) {
+    return res.status(200).json({ link: data.data, hash: magnetHash })
+  } else {
   const BASE_URL = await getBaseUrl()
   try {
     // Используем нативный fetch вместо axios
@@ -105,12 +116,14 @@ export const magnetSearch = async (req, res) => {
     const downloadLink = $('#download a').toArray()
     const magnetLink = $(downloadLink[0]).attr('href')
 
-    // parseTorrent — это синхронная функция, убираем await
-    const magnet = parseTorrent(magnetLink)
+    const magnet = await parseTorrent(magnetLink)
 
     return res.status(200).json({ link: magnetLink, hash: magnet.infoHash })
   } catch (error) {
     console.error('Ошибка при запросе данных:', error)
     return res.status(400).send('Ошибка запроса')
   }
+
+  }
+
 }

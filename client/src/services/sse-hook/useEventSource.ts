@@ -15,7 +15,11 @@ let retries = 0;
 const MAX_RETRIES = 5;
 const baseUrl: string = import.meta.env.VITE_API_URL ?? `http://127.0.0.1:${import.meta.env.VITE_API_PORT ?? 8000}`
 
-export const useEventSource = (hash?: string | null): { eventSourceData: ResponseEventSource | null, clearEventSource: () => void, startEventSource: (infoHash: string) => void } => {
+export const useEventSource = (hash?: string | null): {
+  eventSourceData: ResponseEventSource | null,
+  clearEventSource: () => void,
+  startEventSource: (infoHash: string) => void
+} => {
   const source = useRef<EventSource | null>(null)
   const [eventSourceData, setEventSourceData] = useState<ResponseEventSource | null>(null)
 
@@ -33,7 +37,7 @@ export const useEventSource = (hash?: string | null): { eventSourceData: Respons
       source.current.close()
     }
 
-    source.current = new EventSource(`${baseUrl}/video/stream/stats/${infoHash}`)
+    source.current = new EventSource(`${baseUrl}/api/video/stream/stats/${infoHash}`)
 
     source.current.onmessage = (event) => {
       try {

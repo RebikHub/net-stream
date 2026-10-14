@@ -7,8 +7,9 @@ import { usePostMovie } from '../../services/query-hooks/usePostMovie'
 import { filters } from '../../constants/filters'
 // import ReactPlayer from 'react-player'
 import classNames from 'classnames'
-import { getStreamStop, postStreamAddMagnet, startVLCPlayer } from '../../services/api'
+import { getStreamStop, postStreamAddMagnet, ResponseSearchMovie, startVLCPlayer } from '../../services/api'
 import { catchError } from '../../services/utils/catchError'
+import { SearchMovieItem } from './SearchMovieItem/SearchMovieItem'
 // import imdb from '../../services/imdb'
 
 export interface MoviesDataEn {
@@ -174,14 +175,6 @@ export const Stream: FC = () => {
           <div className={css.buttons}>
             {/* <button onClick={getImdbFilms}>IMDB</button> */}
             <button onClick={search}>Search</button>
-            <button
-              onClick={play}
-              className={classNames({ [css.disabled]: !(Boolean(listMovies.hash) && Boolean(movieName)) })}
-              disabled={!(Boolean(listMovies.hash) && Boolean(movieName))}
-            >
-              Play
-            </button>
-            <button onClick={stop}>Stop</button>
             <button onClick={cancel}>Cancel</button>
           </div>
           {isLoading && <p>Loading...</p>}
@@ -201,6 +194,18 @@ export const Stream: FC = () => {
                   {listMovies.list.map((item: any) => <p key={item.name} style={{ cursor: 'pointer' }} onClick={() => choseMovie(item.name)}>{item.name}</p>)}
                 </div>)
               : null}
+          {Boolean(movieName) &&
+            <div className={css.buttons}>
+              <button
+                onClick={play}
+                className={classNames({ [css.disabled]: !(Boolean(listMovies.hash) && Boolean(movieName)) })}
+                disabled={!(Boolean(listMovies.hash) && Boolean(movieName))}
+              >
+                Play
+              </button>
+              <button onClick={stop}>Stop</button>
+            </div>
+          }
         </div>
         {/* {activeUrl !== ''
           ? (
@@ -222,15 +227,15 @@ export const Stream: FC = () => {
           <>
             <h5>Result</h5>
             <ul>
-              {searchMovieData.map((item: any) => (
-                <li
+              {searchMovieData.filter((e) => !!e.urlTorrent).map((item: ResponseSearchMovie) => (
+                <SearchMovieItem
                   key={item.urlTorrent}
-                  onClick={() => takeMovie(item?.urlTorrent != null ? item.urlTorrent : item?.magnet)}
-                >
-                  <p>{item.dateTorrent}</p>
-                  <p>{item.nameTorrent}</p>
-                  <p>{item.gbTorrent}</p>
-                </li>
+                  onClick={() => takeMovie(item.urlTorrent as string)}
+                  date={item.dateTorrent}
+                  name={item.nameTorrent}
+                  size={item.gbTorrent}
+                  ratio={item.seeds}
+                />
               ))}
             </ul>
           </>

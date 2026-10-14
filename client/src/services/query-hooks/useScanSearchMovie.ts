@@ -4,7 +4,7 @@ import { QueryKeys } from './types'
 import { useMemo } from 'react'
 
 export const useScanSearchMovie = (movie: string, filter: number): {
-  searchMovieData?: ResponseSearchMovie
+  searchMovieData?: ResponseSearchMovie[] | null
   getSearchMovie: (options?: RefetchOptions | undefined) => Promise<QueryObserverResult<any, Error>>
   isLoading: boolean
   error: Error | null
