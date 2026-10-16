@@ -84,6 +84,13 @@
 
 .videoWrapper {
   position: relative;
+  width: 100%;
+  max-width: 900px;
+
+  & video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+  }
 }
 
 .closeVideo {

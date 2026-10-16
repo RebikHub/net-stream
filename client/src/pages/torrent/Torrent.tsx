@@ -23,8 +23,10 @@ export const Torrent = () => {
 
   const [isLoading, setLoading] = useState(false)
   const [videoSrc, setVideoSrc] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const play = useCallback((): void => {
+    setErrorMessage('')
     try {
       if (input) {
         setLoading(true)
@@ -35,14 +37,14 @@ export const Torrent = () => {
             setListMovies({ list: files, hash: infoHash })
           })
           .catch((error: any) => {
-            console.error('Error adding magnet:', error)
+            setErrorMessage(error.error)
           })
           .finally(() => {
             setLoading(false)
           })
       }
-    } catch (error) {
-      console.error(error)
+    } catch (error: any) {
+      setErrorMessage(error.error)
     }
   }, [input, startEventSource])
 
@@ -67,6 +69,7 @@ export const Torrent = () => {
 
   const stop = useCallback(
     (magnet: string) => {
+      setErrorMessage('')
       clearEventSource()
       getStreamStop(magnet).catch(catchError)
     },
@@ -74,6 +77,7 @@ export const Torrent = () => {
   )
 
   const cancel = useCallback((): void => {
+    setErrorMessage('')
     if (listMovies.hash) {
       stop(listMovies.hash)
     }
@@ -113,7 +117,7 @@ export const Torrent = () => {
             onChange={(e) => setInput(e.target.value)}
           />
           <div className={css.buttons}>
-            <button onClick={play}>Play</button>
+            <button onClick={play}>Add</button>
             <button onClick={cancel}>Cancel</button>
             <button
               onClick={() => {
@@ -184,6 +188,7 @@ export const Torrent = () => {
               ) : null}
             </>
           )}
+          {errorMessage && <p>{errorMessage}</p>}
         </div>
       </div>
     </div>

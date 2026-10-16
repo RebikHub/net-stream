@@ -187,11 +187,13 @@ export const Stream: FC = () => {
             </div>
           )}
           {listMovies.list.length === 1
-            ? (<p style={{ cursor: 'pointer' }} onClick={() => choseMovie(listMovies.list[0].name)}>{listMovies.list[0].name}</p>)
+            ? (<p style={{cursor: 'pointer'}} onClick={() => choseMovie(listMovies.list[0].name)}>{listMovies.list[0].name}</p>)
             : listMovies.list.length > 0
               ? (
                 <div>
-                  {listMovies.list.map((item: any) => <p key={item.name} style={{ cursor: 'pointer' }} onClick={() => choseMovie(item.name)}>{item.name}</p>)}
+                  {listMovies.list.map((item: any) =>
+                      <p key={item.name} className={css.checkItem} style={{backgroundColor: movieName === item.name ? '#f8f9ca' : ''}} onClick={() => choseMovie(item.name)}>{item.name} {movieName === item.name ? `check` : null}</p>
+                  )}
                 </div>)
               : null}
           {Boolean(movieName) &&

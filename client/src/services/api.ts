@@ -1,6 +1,8 @@
 import { ChannelListUrl } from './query-hooks/types'
 
-const baseUrl: string = import.meta.env.VITE_API_URL ?? `http://127.0.0.1:${import.meta.env.VITE_API_PORT ?? 8000}` + '/api'
+const baseUrl: string = `${import.meta.env.VITE_API_URL ?? `http://127.0.0.1:${import.meta.env.VITE_API_PORT ?? 8000}`}/api`
+
+console.log(import.meta.env.VITE_API_URL)
 
 const baseApi = async (url: string, config?: any): Promise<any> => {
   try {

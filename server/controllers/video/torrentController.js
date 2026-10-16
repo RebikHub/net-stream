@@ -3,8 +3,9 @@ import { readJsonId } from '../../utils/readJson.js'
 import { spawn } from '../../utils/startVLC.js'
 import { WEBTORRENT_DOWNLOAD_PATH } from '../../index.js'
 import { createDownlaodFolder } from '../../utils/createFolder.js'
-import { clearFolder } from '../../utils/clearFolder.js'
 import ParseTorrent from 'parse-torrent'
+import { waitForTorrentReady } from '../../utils/waitForTorrentReady.js'
+import { isVideoFile } from '../../utils/isVideoFile.js'
 
 // magnet:?xt=urn:btih:566eb622fa7e3eea95a4acef2bf9a3e8b8bdb02d&dn=rutor.info_%D0%9C%D0%B0%D0%BD%D0%B4%D0%B0%D0%BB%D0%BE%D1%80%D0%B5%D1%86+%D0%B8+%D0%93%D1%80%D0%BE%D0%B3%D1%83+%2F+The+Mandalorian+%26+Grogu+%282026%29+WEB-DL+1080p+%D0%BE%D1%82+EniaHD+%7C+D+%7C+MovieDalen+%7C+IMAX&tr=udp://opentor.net:6969&tr=http://retracker.local/announce
 
@@ -22,10 +23,35 @@ const client = new WebTorrent({
            'udp://tracker.openbittorrent.com:80/announce',
            'udp://tracker.publicbt.com:80/announce',
            'udp://tracker.opentrackr.org:1337',
-           'udp://tracker.coppersurfer.tk:6969'
+      'udp://tracker.coppersurfer.tk:6969',
+      'wss://tracker.openwebtorrent.com',
+      'wss://tracker.webtorrent.dev'
+    ],
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
     ]
   }
 })
+
+const announceList = [
+  'http://bt2.t-ru.org/ann?magnet',
+  'udp://opentor.net:6969',
+  'retracker.local/announce',
+  'udp://tracker.openbittorrent.com:80/announce',
+  'udp://tracker.publicbt.com:80/announce',
+  'udp://tracker.opentrackr.org:1337',
+'udp://tracker.coppersurfer.tk:6969',
+'wss://tracker.openwebtorrent.com',
+  'wss://tracker.webtorrent.dev',
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.webtorrent.dev',
+  'wss://tracker.files.fm:7073/announce',
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://open.demonii.com:1337/announce',
+  'udp://tracker.torrent.eu.org:451/announce',
+  'udp://explodie.org:6969/announce',
+  'http://tracker.openbittorrent.com:80/announce'
+];
 
 const streamServer = client.createServer({}, 'node');
 const STREAM_PORT = 8001; // или 0 для динамического порта
@@ -41,6 +67,11 @@ client.on('error', (err) => {
 
 client.on('add', (torrent) => {
   console.log(`event-log-add: Торрент добавлен: ${torrent.magnetURI || torrent.infoHash}`)
+
+  torrent.on('metadata', () => {
+    console.log('OK, имя:', torrent.name)
+  })
+
 })
 
 client.on('torrent', (torrent) => {
@@ -78,38 +109,6 @@ client.on('torrent', (torrent) => {
 client.on('remove', (torrent) => {
   console.log(`event-log-remove: Торрент удалён: ${torrent.name || torrent.infoHash}`)
 })
-
-// --- Вспомогательные функции ---
-
-/**
- * Ждёт готовности торрента с таймаутом.
- */
-function waitForTorrentReady(torrent, timeoutMs = 100000) {
-  torrent.on('metadata', () => {
-    console.log('[Torrent] Метаданные загружены.');
-
-  })
-  return new Promise((resolve, reject) => {
-    if (torrent.ready) return resolve()
-    const cleanup = () => {
-      // clearTimeout(timer)
-      torrent.removeListener('ready', onReady)
-      torrent.removeListener('error', onError)
-    }
-    const onReady = () => { cleanup(); resolve() }
-    const onError = (err) => { cleanup(); reject(err) }
-
-    torrent.on('ready', onReady)
-    torrent.on('error', onError)
-
-    // const timer = setTimeout(() => {
-    //   cleanup()
-    //   reject(new Error(`Timeout waiting for metadata after ${timeoutMs}ms`))
-    // }, timeoutMs)
-  })
-}
-
-// --- Публичные методы ---
 
 /**
  * Загрузка торрента: добавляет, если нет, и возвращает infoHash после ready.
@@ -208,12 +207,15 @@ export const addMagnet = async (req, res) => {
   const parseTorrent = await ParseTorrent(magnetLink)
   const { infoHash } = parseTorrent
 
+  console.log('infoHash: ', infoHash)
+
   try {
     let torrent = await client.get(infoHash)
 
     if (!torrent) {
       torrent = client.add(magnetLink, {
-        path: `${createDownlaodFolder()}/${infoHash}`
+        path: `${createDownlaodFolder()}/${infoHash}`,
+        announce: announceList
       })
     }
 
@@ -316,36 +318,88 @@ export const streamVideo = async (req, res, next) => {
 
 export const getStreamLink = async (link, name) => {
   try {
-    const fileName = decodeURIComponent(name);
     let torrent = await client.get(link);
     if (!torrent) {
       console.log(`[Player] Торрент не найден. Добавляем: ${link}`);
       torrent = client.add(link);
     }
+
     if (!torrent.ready) {
       console.log('[Player] Ожидаем загрузки метаданных...');
       await new Promise((resolve) => {
         torrent.on('ready', resolve);
       });
     }
-    const file = torrent.files.find(f => f.name === fileName);
-    if (!file) {
-      return res.status(404).json({ error: 'File not found' });
+
+    // 2. Ищем файл по точному совпадению имени
+    let file = torrent.files.find(f => f.name === name);
+
+    // 3. ВАЖНО: Если файл не найден или это НЕ видео (например, .nfo),
+    // пытаемся найти самый большой видеофайл в торренте автоматически.
+    // Это спасет пользователя, если фронтенд случайно передал имя .nfo файла.
+    if (!file || !isVideoFile(file.name)) {
+      console.warn(`[Player] Файл не найден или это не видео (${name}). Ищем самый большой видеофайл...`);
+
+      const videoFiles = torrent.files.filter(f => isVideoFile(f.name));
+      if (videoFiles.length === 0) {
+        return null; // В торренте вообще нет видео
+      }
+
+      // Сортируем по размеру и берем самый большой (обычно это и есть фильм)
+      videoFiles.sort((a, b) => b.length - a.length);
+      file = videoFiles[0];
+      console.log(`[Player] Автоматически выбран файл: ${file.name}`);
     }
+
     file.select();
-    let safePath = file.streamURL.replace(/\\/g, '/');
-    safePath = safePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+
+    // 4. Безопасное формирование URL.
+    // Разбиваем путь, кодируем ТОЛЬКО имя файла (последний сегмент) и только ОДИН раз.
+    const urlParts = file.streamURL.replace(/\\/g, '/').split('/');
+    const rawFileName = urlParts.pop(); // Получаем имя файла без пути
+    // const encodedFileName = encodeURIComponent(rawFileName); // Кодируем 1 раз
+
+    const safePath = [...urlParts, rawFileName].join('/');
     const absoluteStreamURL = `http://localhost:${STREAM_PORT}${safePath}`;
+
     return absoluteStreamURL;
+
   } catch (err) {
     console.error('[Player Error]:', err);
     return null;
   }
-}
+};
+
+export const getLinkForPlayer = async (req, res) => {
+    const { link, name } = req.params;
+
+    if (!link || !name) {
+      return res.status(400).json({ error: 'Missing link or name parameter' });
+    }
+
+    console.log('name: ', name)
+
+  const absoluteStreamURL = await getStreamLink(link, name);
+
+  console.log('absoluteStreamURL: ', absoluteStreamURL)
+
+    if (!absoluteStreamURL) {
+      // Теперь res используется здесь, где он есть, и мы отдаем понятную ошибку
+      return res.status(404).json({
+        error: 'Video file not found in torrent, or torrent contains no valid video files (.nfo, .txt are ignored).'
+      });
+    }
+
+    return res.status(200).json({ success: true, url: absoluteStreamURL });
+};
 
 export const startPlayer = async (req, res) => {
     const { link, name } = req.params;
-    const absoluteStreamURL = await getStreamLink(link, name);
+    console.log('name: ', name)
+
+  const absoluteStreamURL = await getStreamLink(link, name);
+
+  console.log('absoluteStreamURL: ', absoluteStreamURL)
     if (!absoluteStreamURL) {
       return res.status(500).json({ error: 'Failed to get stream link' });
     }
@@ -353,14 +407,6 @@ export const startPlayer = async (req, res) => {
     return res.status(200).json({ success: true, url: absoluteStreamURL });
 };
 
-export const getLinkForPlayer = async (req, res) => {
-    const { link, name } = req.params;
-    const absoluteStreamURL = await getStreamLink(link, name);
-    if (!absoluteStreamURL) {
-      return res.status(500).json({ error: 'Failed to get stream link' });
-    }
-    return res.status(200).json({ success: true, url: absoluteStreamURL });
-};
 
 
 /**
