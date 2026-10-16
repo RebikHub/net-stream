@@ -90,3 +90,10 @@ typings/
 
 # Electron-Forge
 out/
+
+# Build outputs
+client/dist/
+src/assets/client/
+src/assets/server/
+
+.zed

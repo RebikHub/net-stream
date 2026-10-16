@@ -1,31 +1,14 @@
 import { app, BrowserWindow } from 'electron'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
-import appExpress from './server/app.js'
-import { PORT } from './server/config.js'
 import squirrel from 'electron-squirrel-startup'
-import { clearFolder } from './server/utils/clearFolder.js'
-import { destroyTorrentClient } from './server/controllers/video/torrentController.js'
-// import { clearBaseUrl } from './server/utils/getBaseUrl.js'
-import { createContentTvFolder, createContentUrlsFolder, createDownlaodFolder } from './server/utils/createFolder.js'
+import { startServer, stopServer } from '../server/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 let mainWindow
-
-export const WEBTORRENT_DOWNLOAD_PATH = createDownlaodFolder()
-export const CONTENT_TV_PATH = createContentTvFolder()
-export const CONTENT_URLS_PATH = createContentUrlsFolder()
-
-appExpress.listen(PORT, () => {
-  clearFolder(WEBTORRENT_DOWNLOAD_PATH)
-  console.log(`Server is running on port ${PORT}`)
-})
-
-if (squirrel) {
-  app.quit()
-}
+let shuttingDown = false
 
 function createWindow () {
   mainWindow = new BrowserWindow({
@@ -33,13 +16,10 @@ function createWindow () {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false,
+      contextIsolation: true,
       enableBlinkFeatures: 'AudioVideoTracks',
       enableRemoteModule: true,
       backgroundThrottling: false,
-      contentSecurityPolicy: "default-src 'self';",
-      // contentSecurityPolicy:
-      //   "default-src 'self' 'unsafe-inline' 'unsafe-eval';",
       autoplayPolicy: 'no-user-gesture-required',
       webSecurity: true,
       sandbox: false
@@ -62,8 +42,23 @@ function createWindow () {
   })
 }
 
+// Функция для безопасного закрытия торрент-клиента и HTTP-сервера перед выходом
+function quitApp () {
+  if (shuttingDown) return
+  shuttingDown = true
+
+  stopServer('quit').finally(() => app.quit())
+}
+
+if (squirrel) {
+  app.quit()
+}
+
 // Обработка события 'ready'
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  startServer() // ОБЯЗАТЕЛЬНО запускаем сервер до создания окна
+  createWindow()
+})
 
 // Обработка события 'activate'
 app.on('activate', () => {
@@ -72,24 +67,15 @@ app.on('activate', () => {
   }
 })
 
-// Обработка события 'window-all-closed'
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    try {
-      destroyTorrentClient()
-    } catch (err) {
-      console.error('Ошибка при удалении файлов: ', err)
-    } finally {
-      app.quit()
-    }
+    quitApp()
   }
 })
 
-// Обработка события 'before-quit'
-app.on('before-quit', () => {
-  try {
-    destroyTorrentClient()
-  } catch (err) {
-    console.error('Ошибка при удалении файлов: ', err)
+app.on('before-quit', (event) => {
+  if (!shuttingDown) {
+    event.preventDefault()
+    quitApp()
   }
 })
